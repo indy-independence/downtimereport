@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # downtimereport.py
 # Interactive measurement of downtime duration during maintenance windows etc
 # https://github.com/indy-independence/downtimereport/
@@ -17,9 +18,9 @@
 
 import time
 import sys
-
 import threading
 import subprocess
+from textwrap import dedent
 
 import pyping
 
@@ -44,49 +45,50 @@ class Traceroute(threading.Thread):
 
 def print_downtime(downtime):
     td = downtime['stop'] - downtime['start']
-    print "Downtime: {:.1f}s".format(td)
-    print "Start: " + time.strftime("%H:%M:%S", time.localtime(downtime['start']))
-    print "Stop:  " + time.strftime("%H:%M:%S", time.localtime(downtime['stop']))
+    print("Downtime: {:.1f}s".format(td))
+    print("Start: " + time.strftime("%H:%M:%S", time.localtime(downtime['start'])))
+    print("Stop:  " + time.strftime("%H:%M:%S", time.localtime(downtime['stop'])))
 
 def main():
     downtimes = []
     curdown = None
 
     if not len(sys.argv) == 2:
-        print "Usage: downtimereport.py <ip>"
-        print "Make sure your clock is synchronized with NTP before starting"
-        print "Will send one ICMP every 100ms, with a timeout of 75ms. " +\
-            "Reports outages longer than around 200ms."
+        print(dedent("""\
+            Usage: downtimereport.py <ip>
+            Make sure your clock is synchronized with NTP before starting
+            Will send one ICMP every 100ms, with a timeout of 75ms.
+            Reports outages longer than around 200ms."""))
         sys.exit(1)
 
     host = sys.argv[1]
 
-    print "Performing pre-flight checks..."
+    print("Performing pre-flight checks...")
     try:
         r = pyping.ping(host, count=3, timeout=1000)
         host_ip = r.destination_ip
-        print "Initial ICMP test to host {} ({}): avg_rtt: {}".format(
+        print("Initial ICMP test to host {} ({}): avg_rtt: {}".format(
             host,
             host_ip,
-            r.avg_rtt)
+            r.avg_rtt))
     except Exception as e:
-        print "Could not ping host {}".format(host)
-        print str(e)
+        print("Could not ping host {}".format(host))
+        print(str(e))
         sys.exit(2)
 
     if r.ret_code != 0:
-        print "Could not ping host {}".format(host)
+        print("Could not ping host {}".format(host))
         sys.exit(3)
 
     if float(r.max_rtt) > 50.0:
-        print "WARNING: max_rtt is over 50 ms ({}). This script will ".format(r.max_rtt) +\
-            "report downtime if no response is seen in 75ms. You might get false-positives."
+        print("WARNING: max_rtt is over 50 ms ({}). This script will ".format(r.max_rtt) +\
+            "report downtime if no response is seen in 75ms. You might get false-positives.")
     
-    print "Recording of downtime intervals for host {} ({}) started at {}.".format(
+    print("Recording of downtime intervals for host {} ({}) started at {}.".format(
         host,
         host_ip,
-        time.strftime("%Y-%m-%d %H:%M:%S %Z"))
-    print "Press Ctrl-C to stop and report."
+        time.strftime("%Y-%m-%d %H:%M:%S %Z")))
+    print("Press Ctrl-C to stop and report.")
 
     try:
         trace = Traceroute()
@@ -103,7 +105,7 @@ def main():
                 continue
 
             if trace_started and not trace.is_alive():
-                print trace.stdout
+                print(trace.stdout)
                 trace_started = False
                 trace.join()
                 del(trace)
@@ -111,8 +113,8 @@ def main():
 
             if curdown and r.packet_lost != 0 and \
                     time.time() - curdown['start'] > 1.0 and \
-                    not trace_started and not curdown.has_key('trace'):
-                print "Downtime of more than 1s detected, trigger traceroute run"
+                    not trace_started and 'trace' not in curdown.keys():
+                print("Downtime of more than 1s detected, trigger traceroute run")
                 trace_started = True
                 curdown['trace'] = True
                 trace.set(host_ip)
@@ -136,14 +138,14 @@ def main():
             downtimes.append(curdown)
             print_downtime(curdown)
 
-    print ""
-    print "Aborted by user at {}".format(time.strftime("%Y-%m-%d %H:%M:%S %Z"))
-    print "Number of downtimes: {}".format(len(downtimes))
+    print()
+    print("Aborted by user at {}".format(time.strftime("%Y-%m-%d %H:%M:%S %Z")))
+    print("Number of downtimes: {}".format(len(downtimes)))
     for i, downtime in enumerate(downtimes):
         td = downtime['stop'] - downtime['start']
-        print "Downtime {}: {:.1f}s".format(i, td)
-        print "Start: " + time.strftime("%H:%M:%S", time.localtime(downtime['start']))
-        print "Stop:  " + time.strftime("%H:%M:%S", time.localtime(downtime['stop']))
+        print("Downtime {}: {:.1f}s".format(i, td))
+        print("Start: " + time.strftime("%H:%M:%S", time.localtime(downtime['start'])))
+        print("Stop:  " + time.strftime("%H:%M:%S", time.localtime(downtime['stop'])))
     
 if __name__ == "__main__":
     main()
