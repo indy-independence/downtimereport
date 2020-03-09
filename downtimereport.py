@@ -39,7 +39,8 @@ class Traceroute(threading.Thread):
         p = subprocess.Popen(['mtr','-nrwc5',self.host],
                              shell=False,
                              stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
+                             stderr=subprocess.PIPE,
+                             text=True)
 
         self.stdout, self.stderr = p.communicate()
 
